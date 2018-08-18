@@ -1,27 +1,43 @@
-best <- function(state, outcome_selected) {
-    ## Read outcome data
-    outcome_data <- read.csv("data/outcome-of-care-measures.csv", colClasses = "character")
-    ## Check that state and outcome are valid
-    if (!(state %in% outcome_data[,7])){
-        # error, state invalid
-        stop("invalid state")
+best <- function( state, outcome_selected ) {
+    
+    ## Read outcome data from file, keep strings for now
+    outcome_data <- read.csv( "data/outcome-of-care-measures.csv", 
+                             stringsAsFactors = FALSE)
+    # switch State to factor
+    outcome_data$State <- as.factor( outcome_data$State )
+    
+    ## Check that state is valid
+    if ( !(state %in% levels( outcome_data$State ) ) ){
+        # error, state invalid. halt.
+        stop( "invalid state" )
     }
-    # heart attack”, “heart failure”, or “pneumonia”
-    outcome_options <- c("heart attack", "heart failure", "pneumonia")
-    # make vector of possible selections
-    table_cols <- c(11,17,23)
-    # make data.frame lookup of selections matched to corresponding 
-    # table cols in data
-    lookup <- data.frame(outcome_options, table_cols)
+    # subset on selected state
+    state_data <- subset( outcome_data, outcome_data$State == state )
+    
+    # create dataframe "lookup" for selection and column reference
+    outcome_options <- c( "heart attack", "heart failure", "pneumonia" )
+    table_cols <- c( 11, 17, 23 )
+    lookup <- data.frame( outcome_options, table_cols )
+
     # get column number from lookup
-    found <- match(outcome_selected, outcome_options, nomatch = 0)
-    column <- lookup[ found , "table_cols" ]
-    # if we didn't fiund a column, exit
-    if (length(column) == 0) {
-        stop("invalid outcome")
-     }
-    print(column)
-    print(lookup[lookup$table_cols == column,])
-    ## Return hospital name in that state with lowest 30-day death rate
+    found <- match( outcome_selected, outcome_options, nomatch = 0 )
+    # if we didn't match text, it's time to exit
+    if ( found == FALSE ) {
+        stop( "invalid outcome" )
+    }
+    
+    # otherwise get index of column and column name for selected outcome
+    outcome_column <- lookup[ found , "table_cols" ]
+    outcome_name <- colnames( outcome_data )[ outcome_column ]
+    
+    # convert selected outcome column to numeric for sort
+    state_data[ , outcome_name ] <- as.numeric( state_data[ , outcome_name ] )
+
+    # sort on outcome, name. store ordering
+    ordering <- order(state_data[ , outcome_name ], 
+                      state_data[,"Hospital.Name"], na.last = NA)
+
+    ## return hospital name in that state with lowest 30-day death rate
+    state_data[ ordering, ][[1,"Hospital.Name"]]
 }
 
